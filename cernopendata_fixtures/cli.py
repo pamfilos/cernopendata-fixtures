@@ -125,6 +125,67 @@ def terms():
 
 @fixtures.command()
 @with_appcontext
+def news():
+    """Load demo terms records."""
+    from invenio_db import db
+    from invenio_records import Record
+    from invenio_indexer.api import RecordIndexer
+    from cernopendata.modules.records.articles.minters import cernopendata_articleid_minter
+
+    indexer = RecordIndexer()
+    schema = current_app.extensions['invenio-jsonschemas'].path_to_url(
+        'records/article-v1.0.0.json'
+    )
+    data = pkg_resources.resource_filename('cernopendata_fixtures', 'data')
+    articles_json = glob.glob(os.path.join(data, 'articles', 'news', '*.json'))
+
+    for filename in articles_json:
+        with open(filename, 'rb') as source:
+            for data in json.load(source):
+                id = uuid.uuid4()
+                cernopendata_articleid_minter(id, data)
+                record = Record.create(data, id_=id)
+                record['$schema'] = schema
+                db.session.commit()
+                indexer.index(record)
+                db.session.expunge_all()
+
+
+@fixtures.command()
+@with_appcontext
+def data_policies():
+    """Load demo terms records."""
+    from invenio_db import db
+    from invenio_records import Record
+    from invenio_indexer.api import RecordIndexer
+    from invenio_pidstore.errors import PIDDoesNotExistError, \
+        PersistentIdentifierError
+    from invenio_pidstore.models import PIDStatus, PersistentIdentifier
+    from invenio_pidstore.fetchers import recid_fetcher
+    from invenio_pidstore.minters import recid_minter
+    from cernopendata.modules.records.minters import cernopendata_recid_minter
+
+    indexer = RecordIndexer()
+    schema = current_app.extensions['invenio-jsonschemas'].path_to_url(
+        'records/data-policies-v1.0.0.json'
+    )
+    data = pkg_resources.resource_filename('cernopendata_fixtures', 'data')
+    data_policies_json = glob.glob(os.path.join(data, '*.json'))
+
+    for filename in data_policies_json:
+        with open(filename, 'rb') as source:
+            for data in json.load(source):
+                id = uuid.uuid4()
+                cernopendata_recid_minter(id, data)
+                record = Record.create(data, id_=id)
+                record['$schema'] = schema
+                db.session.commit()
+                indexer.index(record)
+                db.session.expunge_all()
+
+
+@fixtures.command()
+@with_appcontext
 def pids():
     """Fetch and register PIDs."""
     from invenio_db import db
